@@ -43,7 +43,7 @@
         <div class="form-group mb-5">
             <label for="autostatus" class="font-weight-bold mb-0">Auto-change Status</label>
             <textarea id="autostatus" class="form-control mb-3" rows="6" placeholder="New-line seprated list of statuses. If you want to use an emoji, set it as the first character on the line. Leave an empty line if you want no status to be displayed for that time."></textarea>
-            <p class="mb-0 text-muted">You must keep this page open for it to update.</p>
+            <p class="mb-0 text-muted">You must keep this page open for it to update. <span class="auto-status"></span></p>
             <label for="autostatus" class="font-weight-bold mb-0">Interval</label>
             <select id="autostatusinterval" class="form-control mb-3">
                 <option value="5m">5 minutes</option>
@@ -60,9 +60,18 @@
                 <option value="24h">1 day</option>
                 <option value="48h">2 days</option>
             </select>
-            <button class="btn btn-primary btn-success">Start</button>
+            <button class="btn btn-primary btn-success btn-auto-status">Start</button>
         </div>
     </div>
+    <div class="bg-dark mt-5 p-4 pt-0 text-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-sm small mt-2 align-middle">
+          <span>MIT License. View code and contribute on <a href="https://github.com/williamd5/discord-api-stuff" target="_blank" class="text-light">GitHub</a>.</span>
+        </div>
+      </div>
+    </div>
+  </div>
 <script>
 function status(data, token = localStorage.dc_token) {
     if (typeof data === "object") data = JSON.stringify(data);
@@ -147,8 +156,56 @@ $(".btn-clock").click(function () {
     }, delay);
 });
 
-//match 1st emoji per line
-// (?:(?=(^\n))\uD83C[\uDF00-\uDFFF])|(?:(?<=(^|\n))\uD83D[\uDC00-\uDDFF])
+$(".btn-auto-status").click(function () {
+    let $this = $(this),
+        initHTML = $this.html();
+    autoStatus($("#autostatus").val(), $("#autostatusinterval").val());
+    $this.fadeOut(100);
+    setTimeout(function () {
+        $this.fadeIn(150).html("Started!");
+        setTimeout(function () {
+            $this.fadeOut(100);
+            setTimeout(function () {
+                $this.fadeIn(150).html(initHTML);
+            }, 100);
+        }, 2000);
+    }, 100);
+});
+
+function autoStatus (list, delay) {
+    if (typeof list === "string") list = list.split("\n");
+    if (typeof delay === "string") delay = timestamp(delay);
+    else if (delay === undefined) delay = 300000;
+    function updateAutoStatus (list, delay, i) {
+        if (i === list.length) i = 0; //reached end, restart
+        let text = list[i],
+            emoji = text.match(/(?:(?<=^)\uD83C[\uDF00-\uDFFF])|(?:(?<=^)\uD83D[\uDC00-\uDDFF])/g);
+        if (emoji !== null && emoji.length > 0) {
+            emoji = emoji[0];
+            text = text.replace(/(?:(?<=^)\uD83C[\uDF00-\uDFFF])|(?:(?<=^)\uD83D[\uDC00-\uDDFF])/g, "");
+        }
+        $(".auto-status").html("Current status: <b>" + text + "</b>");
+        status(JSON.stringify({"custom_status":{"text":text,"emoji_name":emoji}}));
+
+        setTimeout(function () {
+            updateAutoStatus(list, delay, ++i);
+        }, delay)
+    }
+    updateAutoStatus(list, delay, 0);
+}
+
+function timestamp (stamp) {//convert 5m, 30s, 12d to ms
+    if (typeof stamp !== "string") throw new Error("@stamp must be string.");
+    let period = stamp[stamp.length - 1],
+        periods = {
+            "s": 1000,
+            "m": 60000,
+            "h": 3600000
+        },
+        numbers = +stamp.substr(0, stamp.length - 1);
+    if (periods[period] === undefined) throw new Error("@stamp Unknown period " + period);
+    return numbers * periods[period];
+}
 </script>
 </body>
 </html>
