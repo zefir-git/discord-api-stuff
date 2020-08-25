@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="mt-4 container">
+        <div class="form-group mb-5">
+            <label for="status" class="font-weight-bold mb-0">authorization</label>
+            <input class="form-control" id="token" placeholder="mfa.Tu_saXqMNBjoffAyX8H5SgM6-W4xw_VvzUYIau-CBFh1SN6oKGwrDPY4dqCm3a3_Y540FbYg8vG1SISgB1Jy">
+            <p class="small text-muted">Is this safe? Are you going to steal my account? This project is open-source and if you are concerned that we will take over your account, you can review the code yourself. This page only sends requestes to the Discord servers as you configure it with the options below.</p>
+            <p class="small text-muted">Where do I find this token? Open Discord and press <kbd>CTRL + Shift + I</kbd> then open the <code>Network</code> tab. Perform any action (e.g. send message, set status, etc) and a new entry should appear. Click on it. Under <code>Request Header</code>, there is an option called <code>authorization</code>, that's your token. You only have to do this the first time. This does not hack your account.</p>
+        </div>
+        <div class="form-group mb-5">
+            <label for="status" class="font-weight-bold mb-0">Custom Status</label>
+
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Text</span>
+                </div>
+                <input type="text" class="form-control" placeholder="Custom Status" id="status">
+            </div>
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Emoji</span>
+                </div>
+                <input type="text" class="form-control" placeholder="Emoji" value="🔥" id="emoji">
+            </div>
+
+            <button class="btn btn-primary btn-status">Set</button>
+            <button class="btn btn-danger btn-status-clear">Reset</button>
+        </div>
+        <div class="form-group mb-5">
+            <label class="font-weight-bold mb-0">Clock in status</label>
+            <p class="mb-3 text-muted">Makes your status a live clock. You must keep this page open for it to update. <b class="clock"></b></p>
+            <button class="btn btn-success btn-clock">Start</button>
+        </div>
+        <div class="form-group mb-5">
+            <label for="autostatus" class="font-weight-bold mb-0">Auto-change Status</label>
+            <textarea id="autostatus" class="form-control mb-3" rows="6" placeholder="New-line seprated list of statuses. If you want to use an emoji, set it as the first character on the line. Leave an empty line if you want no status to be displayed for that time."></textarea>
+            <p class="mb-0 text-muted">You must keep this page open for it to update.</p>
+            <label for="autostatus" class="font-weight-bold mb-0">Interval</label>
+            <select id="autostatusinterval" class="form-control mb-3">
+                <option value="5m">5 minutes</option>
+                <option value="10m">10 minutes</option>
+                <option value="15m">15 minutes</option>
+                <option value="30m">30 minutes</option>
+                <option value="45m">45 minutes</option>
+                <option value="1h">1 hour</option>
+                <option value="2h" selected>2 hours</option>
+                <option value="4h">4 hours</option>
+                <option value="6h">6 hours</option>
+                <option value="12h">12 hours</option>
+                <option value="18h">18 hours</option>
+                <option value="24h">1 day</option>
+                <option value="48h">2 days</option>
+            </select>
+            <button class="btn btn-primary btn-success">Start</button>
+        </div>
+    </div>
+<script>
+function status(data, token = localStorage.dc_token) {
+    if (typeof data === "object") data = JSON.stringify(data);
+    else if (typeof data === "string" && !data.startsWith("{")) data = JSON.stringify({custom_status:{text:data}});
+    let req = new XMLHttpRequest();
+    req.open("PATCH", "https://discordapp.com/api/v8/users/@me/settings", true);
+    req.setRequestHeader("authorization", token);
+    req.setRequestHeader("content-type", "application/json");
+    req.onload = () => {
+        if (req.status < 400) {
+            return;
+        }
+
+        console.error(`Can't change status: ${Error(req.status)}`, {
+            type: "error"
+        });
+    };
+
+    return req.send(data);
+}
+
+function statusClock () {
+    let date = new Date(),
+        clocks = ['🕛','🕐','🕑','🕒','🕓','🕔','🕕','🕖','🕗','🕘','🕙','🕚'],
+        hours = date.toGMTString().split(date.getFullYear() + " ")[1].split(" ")[0].substr(0, 2);
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    let emoji = clocks[hours];
+    let text = date.toGMTString().split(date.getFullYear() + " ")[1].split(" ")[0].substr(0, 5) + " GMT";
+    $("b.clock").html(emoji + " " + text);
+    return status(JSON.stringify({"custom_status":{"text":text,"emoji_name":emoji}}), $("#token").val());
+}
+
+$("#token").on("input", function () {
+    localStorage.setItem("dc_token", $(this).val());
+});
+
+$("#token").val(localStorage.dc_token);
+
+$(".btn-status").click(function () {
+    let $this = $(this),
+        initHTML = $this.html();
+    status(JSON.stringify({"custom_status":{"text":$("#status").val(),"emoji_name":$("#emoji").val()}}));
+    $this.fadeOut(100);
+    setTimeout(function () {
+        $this.fadeIn(150).html("Request sent!");
+        setTimeout(function () {
+            $this.fadeOut(100);
+            setTimeout(function () {
+                $this.fadeIn(150).html(initHTML);
+            }, 100);
+        }, 2000);
+    }, 100);
+});
+
+$(".btn-status-clear").click(function () {
+    let $this = $(this),
+        initHTML = $this.html();
+    status(JSON.stringify({"custom_status":null}));
+    $this.fadeOut(100);
+    setTimeout(function () {
+        $this.fadeIn(150).html("Request sent!");
+        setTimeout(function () {
+            $this.fadeOut(100);
+            setTimeout(function () {
+                $this.fadeIn(150).html(initHTML);
+            }, 100);
+        }, 2000);
+    }, 100);
+});
+
+$(".btn-clock").click(function () {
+    $(this).addClass("disabled").attr("disabled", "").html("Started!");
+    let delay = (60 - new Date().getSeconds()) * 1000;
+    statusClock(); //set current time
+    setTimeout(function () {
+        function changeClock() {
+            statusClock();
+            setTimeout(changeClock, 60000);
+        }
+        changeClock();
+    }, delay);
+});
+
+//match 1st emoji per line
+// (?:(?=(^\n))\uD83C[\uDF00-\uDFFF])|(?:(?<=(^|\n))\uD83D[\uDC00-\uDDFF])
+</script>
+</body>
+</html>
